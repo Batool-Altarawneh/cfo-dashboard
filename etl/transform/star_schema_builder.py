@@ -322,10 +322,15 @@ def load_dimension(
 
     # Build a Python dictionary that maps natural keys to integer keys.
     # The fact table will use this mapping to replace text values with FKs.
-    key_mapping = {
-        row._mapping[natural_key_column]: row._mapping[surrogate_key_column]
-        for row in rows
-    }
+    key_mapping = {}
+    for row in rows:
+        try:
+            # SQLAlchemy 2.0 style
+            row_dict = row._mapping
+        except AttributeError:
+            # SQLAlchemy 1.4 style
+            row_dict = dict(row)
+        key_mapping[row_dict[natural_key_column]] = row_dict[surrogate_key_column]
 
     print(
         f"   production.{orm_class.__tablename__}: "

@@ -1,84 +1,334 @@
-# docker-compose.yml
-# Instead of installing PostgreSQL directly on my Windows machine,I am running it inside a Docker container to keep the environment clean and reproducible.
+# This file starts the full local data stack for the CFO Financial KPI Dashboard.
 #
-# To start the database:
-# docker compose up -d
+# Instead of running PostgreSQL and Airflow manually one by one,
+# Docker Compose lets me define all containers in one file and start them together.
 #
-# To stop the database:
-# docker compose down
+# Stack overview:
+#   1. postgres
+#      Stores the project database.
+#      Also stores Airflow metadata database.
+#
+#   2. airflow-init
+#      Runs only once to prepare Airflow:
+#      - creates Airflow metadata tables
+#      - creates the admin user for the Airflow UI
+#
+#   3. airflow-webserver
+#      Runs the Airflow browser UI at:
+#      http://localhost:8080
+#
+#   4. airflow-scheduler
+#      Watches the DAGs and runs tasks based on the schedule.
 
-version: "3.8"
+
+
+# ---------------------------------------------------------------------------
+# Shared Airflow configuration
+# ---------------------------------------------------------------------------
+
+x-airflow-common: &airflow-common
+
+  # Official Apache Airflow Docker image.
+  image: apache/airflow:2.9.1
+
+  environment:
+    # -----------------------------------------------------------------------
+    # Airflow executor
+    # -----------------------------------------------------------------------
+    #
+    # The executor controls how Airflow runs tasks.
+    
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+
+    # -----------------------------------------------------------------------
+    # Airflow metadata database connection
+    # -----------------------------------------------------------------------
+    
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${DB_USER}:${DB_PASSWORD}@${DB_HOST_DOCKER}:${DB_PORT}/${AIRFLOW_METADATA_DB}
+
+    # -----------------------------------------------------------------------
+    # Fernet key
+    # -----------------------------------------------------------------------
+    #
+    # Airflow uses this key to encrypt sensitive values stored in its metadata DB,
+    # such as connection passwords.
+    #
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
+
+    # -----------------------------------------------------------------------
+    # Do not load Airflow example DAGs
+    # -----------------------------------------------------------------------
+    #
+    # Airflow ships with many example DAGs by default.
+    # I disable them so the UI only shows my project DAGs.
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+
+    # -----------------------------------------------------------------------
+    # Webserver secret key
+    # -----------------------------------------------------------------------
+    #
+    # Used by the Airflow webserver to secure browser sessions.
+    #
+    AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_WEBSERVER_SECRET_KEY}
+
+    # -----------------------------------------------------------------------
+    # Project database credentials
+    # -----------------------------------------------------------------------
+    #
+    # These variables are for MY ETL pipeline, not for Airflow itself.
+    #
+    # The DAG can read these environment variables to connect to the CFO project database and load data into staging/production schemas.
+    #
+    #   Inside Docker, DB_HOST must be postgres, not localhost. That is why I pass DB_HOST_DOCKER into DB_HOST here.
+    DB_HOST: ${DB_HOST_DOCKER}
+    DB_PORT: ${DB_PORT}
+    DB_NAME: ${DB_NAME}
+    DB_USER: ${DB_USER}
+    DB_PASSWORD: ${DB_PASSWORD}
+
+    # General environment flag.
+    ENV: ${ENV}
+
+  volumes:
+    # -----------------------------------------------------------------------
+    # Mount the full project folder into the Airflow container
+    # -----------------------------------------------------------------------
+ 
+    - .:/opt/airflow/project
+
+    # -----------------------------------------------------------------------
+    # Mount the DAGs folder into Airflow's DAGs directory
+    # -----------------------------------------------------------------------
+    #
+    # Airflow automatically scans /opt/airflow/dags for DAG files.
+    #
+    # So any Python file I put in ./dags on my laptop will appear in the Airflow web UI.
+    - ./dags:/opt/airflow/dags
+
+  depends_on:
+    # -----------------------------------------------------------------------
+    # Airflow depends on PostgreSQL
+    # -----------------------------------------------------------------------
+    #
+    # Airflow should not start until PostgreSQL is actually ready.
+    #
+    # service_healthy means Docker will wait for the postgres healthcheck to pass before starting the Airflow services.
+    postgres:
+      condition: service_healthy
+
 
 services:
 
-  # ---------------------------------------------------------------------------
-  # PostgreSQL Database Service
-  # ---------------------------------------------------------------------------
-  # This service creates a PostgreSQL database container.
-  # The database will be used to store:
-  # 1. Raw financial data in a staging schema
-  # 2. Clean star schema tables in a production schema
-  # ---------------------------------------------------------------------------
+  # =========================================================================
+  # PostgreSQL database
+  # =========================================================================
+  #
+  # This is the main database container for the project.
+  #
+  # It stores:
+  #   1. Project database      : ${DB_NAME}
+  #   2. Airflow metadata DB   : ${AIRFLOW_METADATA_DB}
+  #
+  # The project database will contain schemas:
+  #   - staging
+  #   - production
 
   postgres:
-    # I am using a fixed PostgreSQL version instead of "latest".
-    # This avoids unexpected issues if PostgreSQL releases a newer version later.
     image: postgres:15
 
-    # This gives the container a readable name.
-    # It makes it easier to recognize in Docker Desktop and in terminal commands.
     container_name: cfo_postgres
 
-    # This tells Docker to restart the container automatically
-    # unless I manually stop it.
-    # Useful if Docker Desktop restarts or the computer restarts.
+    # Restart the database automatically if it crashes, unless I manually stop it.
     restart: unless-stopped
 
-    # Environment variables used by the official PostgreSQL Docker image.
-    # These values are used when the database is created for the first time.
     environment:
-      POSTGRES_DB: cfo_dashboard          # Name of the database for this project
-      POSTGRES_USER: postgres             # Main PostgreSQL username
-      POSTGRES_PASSWORD: password123  # Password used to connect from Python/Power BI
+      
+      POSTGRES_USER: ${DB_USER}
 
-    # Port mapping between my laptop and the container.
-    # Left side  = my local machine port
-    # Right side = PostgreSQL port inside the container
-    #
-    # This means I can connect to PostgreSQL from Python, DBeaver, pgAdmin, or Power BI using:
-    # host: localhost
-    # port: 5432
+      
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+
+      # Main project database created when the container is initialized.
+      # This creates only the main project database.
+      # If Airflow also needs airflow_metadata, init.sql must create it.
+      POSTGRES_DB: ${DB_NAME}
+
     ports:
-      - "5432:5432"
+      # Expose PostgreSQL to my laptop.
+      #
+      # Format:
+      #   host_port:container_port
+      #
+      # DB_PORT comes from .env:
+      #   DB_PORT=5432
+      #
+      # This lets me connect using DBeaver at localhost:5432
+      - "${DB_PORT}:5432"
 
-    # Volumes are used to persist data and run initialization scripts.
     volumes:
-      # This named volume stores PostgreSQL data outside the container.
-      # Without this, data could be lost when the container is removed.
+      # Store PostgreSQL data in a named Docker volume.
+      #
+      # This keeps the database data even if the container is deleted/recreated.
       - postgres_data:/var/lib/postgresql/data
 
-      # This mounts my local init.sql file into the special PostgreSQL init folder.
-      # PostgreSQL automatically runs scripts in this folder only the first time
-      # the database is created.
+      # Run init.sql automatically the first time the database is created.
+      #
+      # I can use init.sql to create:
+      #   - airflow_metadata database
+      #   - staging schema
+      #   - production schema
+      #   - initial tables if needed
+      #
+      # Files in /docker-entrypoint-initdb.d/ only run when the database volume is created for the first time.
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
 
-    # Healthcheck tells Docker how to check if PostgreSQL is ready.
-    # A container can be "started" but the database may still not be ready to accept connections.
-    #
-    # pg_isready is a PostgreSQL command that checks database readiness.
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s   # Check every 10 seconds
-      timeout: 5s     # Wait up to 5 seconds for each check
-      retries: 5      # Try 5 times before marking the container as unhealthy
+      # Check whether PostgreSQL is ready to accept connections.
+     
+      # This is used by depends_on so Airflow waits until PostgreSQL is healthy.
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+
+      # Run the healthcheck every 10 seconds.
+      interval: 10s
+
+      # If PostgreSQL does not respond within 5 seconds, count it as failed.
+      timeout: 5s
+
+      # Try 5 times before marking the container as unhealthy.
+      retries: 5
+
+
+  # =========================================================================
+  # Airflow initialization service
+  # =========================================================================
+  #
+  # This service is used for one-time setup only.
+  #
+  # It prepares Airflow by:
+  #   1. initializing the Airflow metadata database
+  #   2. creating an admin user for the Airflow web UI
+  #
+  # It is normal for this container to exit after it finishes.
+
+  airflow-init:
+    # Reuse the shared Airflow configuration defined above.
+    <<: *airflow-common
+
+    container_name: cfo_airflow_init
+
+    # Use bash so I can run multiple setup commands in one script block.
+    entrypoint: /bin/bash
+
+    command:
+      - -c
+      - |
+        # Initialize Airflow's metadata database.
+        # This creates the internal tables Airflow needs to track DAGs and tasks.
+        airflow db init &&
+
+        # Create an admin user for the Airflow web UI.
+        #
+        # Values come from .env:
+        #   AIRFLOW_ADMIN_USERNAME
+        #   AIRFLOW_ADMIN_FIRSTNAME
+        #   AIRFLOW_ADMIN_LASTNAME
+        #   AIRFLOW_ADMIN_ROLE
+        #   AIRFLOW_ADMIN_EMAIL
+        #   AIRFLOW_ADMIN_PASSWORD
+        airflow users create \
+          --username ${AIRFLOW_ADMIN_USERNAME} \
+          --firstname ${AIRFLOW_ADMIN_FIRSTNAME} \
+          --lastname ${AIRFLOW_ADMIN_LASTNAME} \
+          --role ${AIRFLOW_ADMIN_ROLE} \
+          --email ${AIRFLOW_ADMIN_EMAIL} \
+          --password ${AIRFLOW_ADMIN_PASSWORD}
+
+    # This service should run once and then stop.
+    # It should not restart like the webserver or scheduler.
+    restart: "no"
+
+
+  # =========================================================================
+  # Airflow webserver
+  # =========================================================================
+  #
+  # This service runs the Airflow browser UI.
+  #
+  # I use it to:
+  #   - see DAGs
+  #   - trigger DAG runs manually
+  #   - check task status
+  #   - inspect logs
+  #   - monitor failures
+
+  airflow-webserver:
+    # Reuse the shared Airflow configuration.
+    <<: *airflow-common
+
+    container_name: cfo_airflow_webserver
+
+    # Start Airflow in webserver mode.
+    command: webserver
+
+    ports:
+      # Expose the Airflow UI to my laptop.
+      #
+      # Open this in the browser:
+      #   http://localhost:8080
+      - "8080:8080"
+
+    # Keep the webserver running unless I manually stop it.
+    restart: unless-stopped
+
+    healthcheck:
+      # Airflow exposes a health endpoint.
+      # Docker uses it to check if the webserver is responding.
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+
+      # Check every 30 seconds.
+      interval: 30s
+
+      # Wait up to 10 seconds for a response.
+      timeout: 10s
+
+      # Try 5 times before marking it unhealthy.
+      retries: 5
+
+
+  # =========================================================================
+  # Airflow scheduler
+  # =========================================================================
+  #
+  # The scheduler is the part of Airflow that actually monitors DAG schedules.
+  #
+  # The webserver only shows the UI.
+  # The scheduler decides when DAGs should run.
+  #
+  # If the scheduler is stopped, scheduled DAGs will not run automatically.
+
+  airflow-scheduler:
+    # Reuse the shared Airflow configuration.
+    <<: *airflow-common
+
+    container_name: cfo_airflow_scheduler
+
+    # Start Airflow in scheduler mode.
+    command: scheduler
+
+    # Keep the scheduler running unless I manually stop it.
+    restart: unless-stopped
 
 
 # ---------------------------------------------------------------------------
-# Named Volumes
+# Named Docker volumes
 # ---------------------------------------------------------------------------
-# A named volume is managed by Docker and keeps the database data persistent.
-# This means the data survives container restarts.
-# ---------------------------------------------------------------------------
+#
+# postgres_data stores the PostgreSQL database files outside the container.
+#
+# This means:
+#   - stopping containers does not delete the database
+#   - recreating the postgres container does not lose data
+#   - the database persists between docker compose up/down cycles
 
 volumes:
   postgres_data:

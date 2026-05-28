@@ -1,10 +1,10 @@
 # Core
 pandas==2.2.2
 numpy==1.26.4
-openpyxl==3.1.2
+openpyxl==3.1.5
 
 # Database
-sqlalchemy==2.0.30
+sqlalchemy===1.4.52
 psycopg2-binary==2.9.9
 python-dotenv==1.0.1
 
