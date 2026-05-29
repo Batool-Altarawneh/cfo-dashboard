@@ -21,8 +21,8 @@ from datetime import date #to create transaction date
 #! ------------------------------------------------------------
 #! 1. Reproducibility
 #! ------------------------------------------------------------
-np.random.seed(42)
-random.seed(42)
+np.random.seed(7)
+random.seed(7)
 
 #! ------------------------------------------------------------
 #! 2. Company Configuration 
@@ -232,9 +232,9 @@ for year, month in months:
         if month in [10, 11, 12]:
             seasonal_factor = np.random.uniform(1.40, 1.60)
         elif month in [1, 2]:
-            seasonal_factor = np.random.uniform(0.85, 0.95)
+            seasonal_factor = np.random.uniform(0.88, 0.95)
         else:
-            seasonal_factor = np.random.uniform(0.95, 1.10)
+            seasonal_factor = np.random.uniform(0.97, 1.08)
 
         # Add 8% year-over-year growth.
         # 2023 = baseline
