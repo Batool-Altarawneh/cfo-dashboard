@@ -466,7 +466,7 @@ if __name__ == "__main__":
     # We predict for December 2025 because this is the last month
     # available in the synthetic dataset.
     TARGET_YEAR = 2025
-    TARGET_MONTH = 12
+    TARGET_MONTH = 11
 
     print(f"\nPredicting for {TARGET_YEAR}-{TARGET_MONTH:02d}")
     print(
