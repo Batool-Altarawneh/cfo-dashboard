@@ -216,3 +216,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+*.pbix
+# Allow Power BI file
+!powerbi/CFO_Dashboard.pbix
