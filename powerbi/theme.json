@@ -1,0 +1,24 @@
+{
+  "name": "CFO Dashboard",
+  "dataColors": [
+    "#1B3A6B",
+    "#2E75B6",
+    "#17A589",
+    "#E67E22",
+    "#C0392B",
+    "#7D3C98",
+    "#1E8449",
+    "#F39C12"
+  ],
+  "background": "#FFFFFF",
+  "foreground": "#2C3E50",
+  "tableAccent": "#2E75B6",
+  "visualStyles": {
+    "*": {
+      "*": {
+        "fontFamily": [{"value": "Segoe UI"}],
+        "fontSize": [{"value": 11}]
+      }
+    }
+  }
+}
