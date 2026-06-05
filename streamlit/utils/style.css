@@ -1,0 +1,154 @@
+/* ------------------------------------------------------------------------- */
+/* KPI card styles */
+/* ------------------------------------------------------------------------- */
+
+
+.kpi-card {
+    background: #F8F9FA;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    border-left: 4px solid #2E75B6;
+    margin-bottom: 0.5rem;
+}
+
+
+/* ------------------------------------------------------------------------- */
+/* KPI label */
+/* ------------------------------------------------------------------------- */
+
+
+.kpi-label {
+    font-size: 12px;
+    color: #7F8C8D;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+
+/* ------------------------------------------------------------------------- */
+/* KPI value */
+/* ------------------------------------------------------------------------- */
+
+
+.kpi-value {
+    font-size: 28px;
+    font-weight: 600;
+    color: #1B3A6B;
+    line-height: 1.1;
+}
+
+
+/* ------------------------------------------------------------------------- */
+/* KPI value status colors */
+/* ------------------------------------------------------------------------- */
+
+
+.kpi-value.positive {
+    color: #1E8449;
+}
+
+.kpi-value.negative {
+    color: #C0392B;
+}
+
+.kpi-value.warning {
+    color: #E67E22;
+}
+
+
+/* ------------------------------------------------------------------------- */
+/* KPI delta */
+/* ------------------------------------------------------------------------- */
+
+
+.kpi-delta {
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+
+/* ------------------------------------------------------------------------- */
+/* Risk badge base style */
+/* ------------------------------------------------------------------------- */
+/*
+A badge is a small label used to show a category or risk level.
+
+Examples:
+HIGH
+MEDIUM
+LOW
+
+The base .badge class defines the shared shape and text style.
+Then we use separate classes for colors.
+*/
+
+.badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+
+/* ------------------------------------------------------------------------- */
+/* Risk badge colors */
+/* ------------------------------------------------------------------------- */
+/*
+These classes apply different colors depending on the risk level.
+
+badge-high:
+Used for high-risk departments or serious budget overrun.
+
+badge-medium:
+Used for medium risk.
+
+badge-low:
+Used for low risk or normal status.
+*/
+
+.badge-high {
+    background: #FDECEA;
+    color: #C0392B;
+}
+
+.badge-medium {
+    background: #FEF5E7;
+    color: #E67E22;
+}
+
+.badge-low {
+    background: #EAF5EE;
+    color: #1E8449;
+}
+
+
+/* ------------------------------------------------------------------------- */
+/* Page header */
+/* ------------------------------------------------------------------------- */
+
+
+.page-header {
+    background: #1B3A6B;
+    color: white;
+    padding: 0.75rem 1.25rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+
+/* ------------------------------------------------------------------------- */
+/* Anomaly row highlight */
+/* ------------------------------------------------------------------------- */
+/*
+This class is used to highlight suspicious or anomalous transaction rows.
+
+For example, if a transaction is flagged by the anomaly detection model, we can highlight it with a light red background so the analyst notices it.
+*/
+
+.anomaly-row {
+    background: #FDECEA !important;
+}
