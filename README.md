@@ -16,13 +16,16 @@ A production-grade financial analytics platform built for a fictional Canadian B
 
 ## 📸 Dashboard Screenshots
 
-### Power BI — Executive Summary
+### Executive Summary
 ![Executive Summary](docs/screenshots/powerbi_page1_executive_summary.png)
 
-### Power BI — Budget vs Actual
+### Revenue & Expenses
+![Budget vs Actual](docs/screenshots/powerbi_page2_revenue_expenses.png)
+
+### Budget vs Actual
 ![Budget vs Actual](docs/screenshots/powerbi_page3_budget_vs_actual.png)
 
-### Power BI — Drill-Through Detail
+### Drill-Through Detail
 ![Drill Through](docs/screenshots/powerbi_page4_drill_through.png)
 
 ---
