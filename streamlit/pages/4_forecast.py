@@ -489,5 +489,11 @@ with st.spinner("Loading Prophet forecast model..."):
         )
 
     except Exception as error:
-        st.error(f"Forecast error: {error}")
-        st.exception(error)
+        st.warning(
+            "Revenue forecast is temporarily unavailable on Streamlit Cloud. "
+            "The Prophet model file was trained in a different environment, so it "
+            "needs to be retrained or the forecast results should be saved to Supabase."
+        )
+
+        st.caption(f"Technical detail: {error}")
+        st.stop()
