@@ -134,8 +134,11 @@ def get_monthly_summary() -> pd.DataFrame:
     """
 
     # Open a database connection, run the query, and return the result as a DataFrame.
-    with engine.connect() as conn:
-        df = pd.read_sql_query(query, engine)
+    raw_conn = engine.raw_connection()
+    try:
+        df = pd.read_sql_query(query, raw_conn)
+    finally:
+        raw_conn.close()
 
     return df
 
@@ -209,13 +212,18 @@ def get_transactions() -> pd.DataFrame:
             dt.full_date DESC
     """
 
-    with engine.connect() as conn:
-        df = pd.read_sql_query(query, engine)
+    raw_conn = engine.raw_connection()
+    try:
+        df = pd.read_sql_query(query, raw_conn)
+    finally:
+        raw_conn.close()
+        df["date"] = pd.to_datetime(df["date"])
+    return df
 
     # Convert the date column to datetime so Streamlit and Plotly can filter and plot it correctly.
-    df["date"] = pd.to_datetime(df["date"])
+    
 
-    return df
+  
 
 
 # ---------------------------------------------------------------------------
