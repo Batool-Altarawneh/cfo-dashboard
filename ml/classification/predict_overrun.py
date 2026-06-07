@@ -146,12 +146,16 @@ def load_financial_data() -> pd.DataFrame:
             dt.month
     """
 
-    with engine.connect() as conn:
-        df = pd.read_sql(text(query), conn)
+    raw_conn = engine.raw_connection()
+    try:
+        df = pd.read_sql_query(query, raw_conn)
+    finally:
+        raw_conn.close()
 
     print(f"Loaded {len(df):,} department-month rows from production")
 
     return df
+  
 
 
 # ---------------------------------------------------------------------------
