@@ -44,15 +44,23 @@ from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 # ---------------------------------------------------------------------------
 
 
-load_dotenv()
+try:
+    import streamlit as st
 
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = os.getenv("DB_PORT", "5432")
-DB_NAME = os.getenv("DB_NAME", "cfo_dashboard")
-DB_USER = os.getenv("DB_USER", "postgres")
-DB_PASS = os.getenv("DB_PASSWORD", "password123")
+    DB_HOST = st.secrets["database"]["DB_HOST"]
+    DB_PORT = st.secrets["database"]["DB_PORT"]
+    DB_NAME = st.secrets["database"]["DB_NAME"]
+    DB_USER = st.secrets["database"]["DB_USER"]
+    DB_PASS = st.secrets["database"]["DB_PASSWORD"]
 
+except Exception:
+    load_dotenv()
 
+    DB_HOST = os.getenv("DB_HOST", "localhost")
+    DB_PORT = os.getenv("DB_PORT", "5432")
+    DB_NAME = os.getenv("DB_NAME", "cfo_dashboard")
+    DB_USER = os.getenv("DB_USER", "postgres")
+    DB_PASS = os.getenv("DB_PASSWORD", "password123")
 # ---------------------------------------------------------------------------
 # Build the PostgreSQL connection URL
 # ---------------------------------------------------------------------------
