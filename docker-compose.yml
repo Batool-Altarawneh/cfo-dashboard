@@ -319,6 +319,37 @@ services:
     restart: unless-stopped
 
 
+# =========================================================================
+# Streamlit Dashboard
+# =========================================================================
+# # This service builds and runs the Streamlit CFO Dashboard container.
+  streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cfo_streamlit # Give the container a clear name so it is easy to find in Docker Desktop.
+    restart: unless-stopped # Restart the container automatically unless I manually stop it.
+    ports:
+      - "8501:8501"
+    environment:
+      DB_HOST:     ${DB_HOST_DOCKER}
+      DB_PORT:     ${DB_PORT}
+      DB_NAME:     ${DB_NAME}
+      DB_USER:     ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      ENV:         ${ENV}
+    depends_on: # Make Streamlit wait until PostgreSQL is healthy before starting.
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout:  10s
+      retries:  3
+
+
 # ---------------------------------------------------------------------------
 # Named Docker volumes
 # ---------------------------------------------------------------------------

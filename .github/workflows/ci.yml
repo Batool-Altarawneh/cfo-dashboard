@@ -1,0 +1,138 @@
+# GitHub Actions CI pipeline for the CFO Financial KPI Dashboard.
+#
+# This file tells GitHub what to do automatically when I push code or open a pull request to the main branch.
+#
+#
+# In this workflow, GitHub will:
+#   1. Download my repository code
+#   2. Set up Python 3.11
+#   3. Install project dependencies
+#   4. Start a temporary PostgreSQL database for testing
+#   5. Create the required schemas
+#   6. Run ETL and KPI tests
+#   7. Check that important modules can be imported successfully
+
+name: CFO Dashboard CI
+
+# This section controls when the workflow runs.
+# It will run when I push code to main.
+# It will also run when I open or update a pull request targeting main.
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+# A workflow can have one or more jobs.
+# Here I have one job called "test".
+jobs:
+  test:
+    name: Run Tests
+
+    # GitHub will run this job on a fresh Ubuntu Linux virtual machine.
+    # This is useful because it tests the project in a clean environment, not only on my laptop.
+    runs-on: ubuntu-latest
+
+    # Service containers are temporary containers used only during this job.
+    # Here I start PostgreSQL because some tests need a real database connection.
+    services:
+      postgres:
+        image: postgres:15
+
+        # These environment variables configure the temporary PostgreSQL database.
+        # This database exists only while the GitHub Actions job is running.
+        env:
+          POSTGRES_DB: cfo_dashboard
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: testpassword123
+
+        # Map PostgreSQL port from the service container to the GitHub runner.
+        # This lets my tests connect to PostgreSQL using localhost:5432.
+        ports:
+          - 5432:5432
+
+        # Health check for the PostgreSQL service.
+        # GitHub waits until PostgreSQL is ready before running the steps.
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    # Steps are the commands that run inside the job.
+    # They run one after another.
+    steps:
+
+      # Step 1: Download the repository code into the GitHub runner.
+      # Without this step, GitHub Actions would not have access to my files.
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2: Install and configure Python 3.11 on the GitHub runner.
+      # The cache option saves installed pip packages between workflow runs, which can make future runs faster.
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      # Step 3: Install the Python libraries needed by the project.
+      # First, upgrade pip.
+      # Then install everything listed in requirements.txt.
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Step 4: Create environment variables for the test run.
+      #
+      # DB_HOST is localhost because the PostgreSQL service is mapped
+      # to the GitHub runner on port 5432.
+      - name: Configure test environment
+        run: |
+          echo "DB_HOST=localhost" >> $GITHUB_ENV
+          echo "DB_PORT=5432" >> $GITHUB_ENV
+          echo "DB_NAME=cfo_dashboard" >> $GITHUB_ENV
+          echo "DB_USER=postgres" >> $GITHUB_ENV
+          echo "DB_PASSWORD=testpassword123" >> $GITHUB_ENV
+          echo "ENV=test" >> $GITHUB_ENV
+
+      # Step 5: Create the database schemas required by the project.
+      # My project separates raw loaded data from clean reporting tables:
+      #   staging    = raw or semi-clean data
+      #   production = clean tables used for reporting and dashboards
+      #
+      # PGPASSWORD passes the password to psql for this command only.
+      - name: Initialise database schemas
+        run: |
+          PGPASSWORD=testpassword123 psql \
+            -h localhost \
+            -U postgres \
+            -d cfo_dashboard \
+            -c "CREATE SCHEMA IF NOT EXISTS staging;" \
+            -c "CREATE SCHEMA IF NOT EXISTS production;"
+
+      # Step 6: Run ETL tests.
+      # These tests should check extract, transform, and load logic.
+      # -v means verbose output.
+      # --tb=short means show shorter error tracebacks if something fails.
+      - name: Run ETL tests
+        run: |
+          python -m pytest tests/test_etl.py -v --tb=short
+
+      # Step 7: Run KPI calculation tests.
+      # These tests should check important financial calculations,
+      # such as revenue, expenses, margin, budget variance, and YTD logic.
+      - name: Run KPI tests
+        run: |
+          python -m pytest tests/test_kpis.py -v --tb=short
+
+      # Step 8: Verify that important modules can be imported.
+      # This catches broken file paths, missing dependencies, and renamed functions.
+      #
+      # If any import fails, the workflow fails.
+      - name: Verify module imports
+        run: |
+          python -c "from etl.extract.db import engine; print('DB module OK')"
+          python -c "from etl.transform.cleaner import clean_transactions; print('Cleaner OK')"
+          python -c "from streamlit.utils.formatters import format_currency; print('Formatters OK')"
