@@ -66,12 +66,12 @@ jobs:
       # Step 1: Download the repository code into the GitHub runner.
       # Without this step, GitHub Actions would not have access to my files.
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
 
       # Step 2: Install and configure Python 3.11 on the GitHub runner.
       # The cache option saves installed pip packages between workflow runs, which can make future runs faster.
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v5.4.0
         with:
           python-version: '3.11'
           cache: 'pip'

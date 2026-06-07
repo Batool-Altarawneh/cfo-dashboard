@@ -2,6 +2,7 @@
 
 > Full-stack financial analytics platform built for a fictional
 > Canadian B2B technology company — NorthStar Analytics Inc.
+[![CFO Dashboard CI](https://github.com/Batool-Altarawneh/cfo-dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/Batool-Altarawneh/cfo-dashboard/actions/workflows/ci.yml)
 
 ## What This Is
 A production-grade financial reporting and forecasting platform combining:
