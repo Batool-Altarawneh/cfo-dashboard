@@ -1,11 +1,11 @@
 # Core
-pandas==2.2.2
+pandas==2.2.3
 numpy==1.26.4
 openpyxl==3.1.5
 
 # Database
 sqlalchemy===1.4.52
-psycopg2-binary==2.9.9
+psycopg2-binary
 python-dotenv==1.0.1
 
 # ETL Quality
