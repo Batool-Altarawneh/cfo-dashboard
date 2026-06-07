@@ -129,8 +129,12 @@ def load_expense_transactions() -> pd.DataFrame:
         ORDER BY dt.full_date, f.transaction_id
     """
 
-    with engine.connect() as conn:
-        df = pd.read_sql(text(query), conn)
+    raw_conn = engine.raw_connection()
+
+    try:
+      df = pd.read_sql_query(query, raw_conn)
+    finally:
+        raw_conn.close()
 
     df["transaction_date"] = pd.to_datetime(df["transaction_date"])
 
