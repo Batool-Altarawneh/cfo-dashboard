@@ -49,6 +49,50 @@ sys.path.insert(0, project_root)
 
 from utils.db_queries import get_monthly_summary
 from utils.formatters import format_currency
+from etl.extract.db import engine
+
+def run_query(query: str) -> pd.DataFrame:
+    """
+    Run a SQL query using a raw DB connection.
+    This avoids pandas / SQLAlchemy compatibility issues on Streamlit Cloud.
+    """
+    raw_conn = engine.raw_connection()
+
+    try:
+        df = pd.read_sql_query(query, raw_conn)
+    finally:
+        raw_conn.close()
+
+    return df
+
+
+@st.cache_data(ttl=3600)
+def load_forecast_from_db() -> pd.DataFrame:
+    """
+    Load pre-computed Prophet forecast results from Supabase.
+    """
+    query = """
+        SELECT *
+        FROM production.prophet_forecasts
+    """
+
+    df = run_query(query)
+    df["ds"] = pd.to_datetime(df["ds"])
+
+    return df
+
+
+@st.cache_data(ttl=3600)
+def load_forecast_metadata() -> pd.DataFrame:
+    """
+    Load Prophet model metadata from Supabase.
+    """
+    query = """
+        SELECT *
+        FROM production.prophet_metadata
+    """
+
+    return run_query(query)
 
 
 # ---------------------------------------------------------------------------
@@ -128,9 +172,7 @@ st.subheader(f"Revenue Forecast - Next {forecast_periods} Months")
 
 with st.spinner("Loading Prophet forecast model..."):
     try:
-        from ml.forecasting.predict import forecast_department, get_model_metadata
-
-        # Map the user-friendly dropdown label to the actual saved model key.
+        # Map the user-friendly dropdown label to the saved forecast key in Supabase.
         department_model_map = {
             "Company Total": "Company_Total",
             "Sales": "Sales"
@@ -138,10 +180,12 @@ with st.spinner("Loading Prophet forecast model..."):
 
         model_key = department_model_map[selected_department]
 
-        forecast_df = forecast_department(
-            model_key,
-            periods=forecast_periods
-        )
+        # Load pre-computed Prophet forecasts from Supabase. This avoids loading Prophet .pkl files on Streamlit Cloud.
+        forecast_all = load_forecast_from_db()
+
+        forecast_df = forecast_all[
+            forecast_all["department"] == model_key
+        ].copy()
 
 
         # -------------------------------------------------------------------
@@ -188,6 +232,7 @@ with st.spinner("Loading Prophet forecast model..."):
 
         historical = forecast_df[~forecast_df["is_forecast"]].copy()
         future = forecast_df[forecast_df["is_forecast"]].copy()
+        future = future.sort_values("ds").head(forecast_periods)
 
         if future.empty:
             st.warning("No future forecast rows were returned.")
@@ -427,7 +472,7 @@ with st.spinner("Loading Prophet forecast model..."):
         st.divider()
         st.subheader("Model Information")
 
-        metadata_df = get_model_metadata()
+        metadata_df = load_forecast_metadata()
 
         if metadata_df.empty:
             st.info("No model metadata is available.")
@@ -490,9 +535,7 @@ with st.spinner("Loading Prophet forecast model..."):
 
     except Exception as error:
         st.warning(
-            "Revenue forecast is temporarily unavailable on Streamlit Cloud. "
-            "The Prophet model file was trained in a different environment, so it "
-            "needs to be retrained or the forecast results should be saved to Supabase."
+            "Forecast results could not be loaded from Supabase."
         )
 
         st.caption(f"Technical detail: {error}")
