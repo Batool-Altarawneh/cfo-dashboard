@@ -230,9 +230,9 @@ for year, month in months:
         # January and February are slightly lower.
         # ------------------------------------------------------------
         if month in [10, 11, 12]:
-            seasonal_factor = np.random.uniform(1.40, 1.60)
+            seasonal_factor = np.random.uniform(1.40, 1.60) #+50%
         elif month in [1, 2]:
-            seasonal_factor = np.random.uniform(0.88, 0.95)
+            seasonal_factor = np.random.uniform(0.88, 0.95) # -80, -95 = less than baseline
         else:
             seasonal_factor = np.random.uniform(0.97, 1.08)
 
@@ -313,7 +313,7 @@ for year in [2023, 2024, 2025]:
         # Only inject anomalies if there are enough candidate rows.
         if len(candidate_indexes) >= 3:
 
-            # Pick 3 random transactions and turn them into anomalies.
+            # Pick 3 random transactions and turn them into anomalies.(unique)
             for idx in random.sample(candidate_indexes, 3):
 
                 # Make the amount 3x to 5x larger than normal.
